@@ -2,6 +2,7 @@
 import { onMounted } from 'vue';
 import { useItemsStore } from './stores/items';
 import TodoList from './components/TodoList.vue';
+import FullscreenToggle from "./components/FullscreenToggle.vue";
 
 const store = useItemsStore();
 
@@ -15,6 +16,7 @@ onMounted(() => {
   <div class="app">
     <header class="header">
       <h1>Realtime Todo (Vue 3 + FastAPI + MongoDB)!</h1>
+      <FullscreenToggle />
       <div class="status">
         <span
           class="dot"
