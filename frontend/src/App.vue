@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { onMounted } from 'vue';
 import { useAppStore } from './stores/app';
-import FullscreenToggle from './components/FullscreenToggle.vue'; // if you still use it
+import FullscreenToggle from './components/FullscreenToggle.vue';
+import ClassesTable from './components/ClassesTable.vue';
+import CoursesTable from './components/CoursesTable.vue';
 
 const store = useAppStore();
 
@@ -9,31 +11,6 @@ onMounted(() => {
   store.fetchData();
   store.connectWebSocket();
 });
-
-// Map course.class_ids -> "C1, C2" etc.
-const coursesWithClassAliases = computed(() =>
-  store.courses.map(course => {
-    const aliases = course.class_ids
-      .map(id => store.classes.find(c => c.id === id)?.alias)
-      .filter((a): a is string => !!a);
-    return {
-      ...course,
-      classAliases: aliases.join(', '),
-    };
-  })
-);
-
-// handle multiselect change
-function onCourseClassesChange(event: Event, courseId: string) {
-  const target = event.target as HTMLSelectElement;
-  const selectedIds = Array.from(target.selectedOptions).map(opt => opt.value);
-  store.updateCourseClassIds(courseId, selectedIds);
-}
-
-// handle alias change (on blur or change)
-function onAliasChange(classId: string, alias: string) {
-  store.updateClassAlias(classId, alias);
-}
 </script>
 
 <template>
@@ -53,65 +30,17 @@ function onAliasChange(classId: string, alias: string) {
       <div v-if="store.isLoading">Loading data...</div>
       <div v-else-if="store.error" class="error">{{ store.error }}</div>
 
-      <section class="tables" v-else>
-        <!-- Classes table -->
-        <div class="table-wrapper">
-          <h2>Classes</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Alias</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="cls in store.classes" :key="cls.id">
-                <td>{{ cls.id }}</td>
-                <td>
-                  <input
-                    v-model="cls.alias"
-                    @change="onAliasChange(cls.id, cls.alias)"
-                    class="alias-input"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Courses table -->
-        <div class="table-wrapper">
-          <h2>Courses</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Subject</th>
-                <th>Classes (aliases)</th>
-                <th>Edit classes</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="course in coursesWithClassAliases" :key="course.id">
-                <td>{{ course.id }}</td>
-                <td>{{ course.subject }}</td>
-                <td>{{ course.classAliases }}</td>
-                <td>
-                  <select
-                    multiple
-                    :value="course.class_ids"
-                    @change="onCourseClassesChange($event, course.id)"
-                    class="class-multiselect"
-                  >
-                    <option v-for="cls in store.classes" :key="cls.id" :value="cls.id">
-                      {{ cls.alias }}
-                    </option>
-                  </select>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <section v-else class="tables">
+        <ClassesTable
+          :classes="store.classes"
+          :courses="store.courses"
+          @update-alias="store.updateClassAlias"
+        />
+        <CoursesTable
+          :courses="store.courses"
+          :classes="store.classes"
+          @update-course-classes="store.updateCourseClassIds"
+        />
       </section>
     </main>
   </div>
@@ -119,12 +48,13 @@ function onAliasChange(classId: string, alias: string) {
 
 <style scoped>
 .app {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 2rem auto;
   padding: 1.5rem;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  border-radius: 8px;
-  border: 1px solid #ddd;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: radial-gradient(circle at top left, #eff6ff 0, #ffffff 45%);
 }
 
 .header {
@@ -140,17 +70,25 @@ function onAliasChange(classId: string, alias: string) {
   justify-content: space-between;
 }
 
+.header-top h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
 .status {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   font-size: 0.9rem;
+  color: #6b7280;
 }
 
 .dot {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: 999px;
 }
 .dot--online {
   background: #16a34a;
@@ -169,30 +107,9 @@ function onAliasChange(classId: string, alias: string) {
   gap: 1.5rem;
 }
 
-.table-wrapper h2 {
-  margin-bottom: 0.5rem;
-  font-size: 1.1rem;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-th, td {
-  border: 1px solid #eee;
-  padding: 0.4rem 0.5rem;
-  text-align: left;
-}
-
-.alias-input {
-  width: 100%;
-  padding: 0.2rem 0.3rem;
-}
-
-.class-multiselect {
-  width: 100%;
-  min-height: 2.5rem;
+@media (max-width: 900px) {
+  .tables {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
