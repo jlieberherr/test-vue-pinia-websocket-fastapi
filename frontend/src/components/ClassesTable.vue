@@ -31,7 +31,7 @@ function getCourseSubjectsForClass(classId: string): string {
     <template #head>
       <tr>
         <th>ID</th>
-        <th>Alias</th>
+        <th class="alias-col">Alias</th>
         <th>Courses</th>
       </tr>
     </template>
@@ -39,7 +39,7 @@ function getCourseSubjectsForClass(classId: string): string {
     <template #body>
       <tr v-for="cls in classes" :key="cls.id">
         <td>{{ cls.id }}</td>
-        <td>
+        <td class="alias-cell">
           <input
             v-model="cls.alias"
             @change="onAliasChange(cls.id, cls.alias)"
@@ -55,14 +55,23 @@ function getCourseSubjectsForClass(classId: string): string {
 </template>
 
 <style scoped>
+.alias-col {
+  width: 90px; /* narrower alias column */
+}
+
+.alias-cell {
+  width: 90px;
+}
+
 .alias-input {
   width: 100%;
-  padding: 0.25rem 0.4rem;
+  padding: 0.2rem 0.35rem;
   border-radius: 6px;
   border: 1px solid #cbd5f5;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
 }
 
 .alias-input:focus {
