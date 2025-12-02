@@ -5,46 +5,107 @@ const props = defineProps<{
   title: string;
   initialX?: number;
   initialY?: number;
+  initialWidth?: number;
+  initialHeight?: number;
 }>();
 
 const x = ref(props.initialX ?? 40);
 const y = ref(props.initialY ?? 140);
+const width = ref(props.initialWidth ?? 420);
+const height = ref(props.initialHeight ?? 260);
 
 const isDragging = ref(false);
-let offsetX = 0;
-let offsetY = 0;
+const isResizing = ref(false);
+
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let resizeStartX = 0;
+let resizeStartY = 0;
+let startWidth = 0;
+let startHeight = 0;
+
+const MIN_WIDTH = 260;
+const MIN_HEIGHT = 160;
+
+// --- drag logic ---
 
 function onMouseDownHeader(e: MouseEvent) {
+  // ignore if a resize is active
+  if (isResizing.value) return;
+
   isDragging.value = true;
-  offsetX = e.clientX - x.value;
-  offsetY = e.clientY - y.value;
+  dragOffsetX = e.clientX - x.value;
+  dragOffsetY = e.clientY - y.value;
 
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
+  document.addEventListener('mousemove', onMouseMoveDrag);
+  document.addEventListener('mouseup', onMouseUpDrag);
 }
 
-function onMouseMove(e: MouseEvent) {
+function onMouseMoveDrag(e: MouseEvent) {
   if (!isDragging.value) return;
-  x.value = e.clientX - offsetX;
-  y.value = e.clientY - offsetY;
+  x.value = e.clientX - dragOffsetX;
+  y.value = e.clientY - dragOffsetY;
 }
 
-function onMouseUp() {
+function onMouseUpDrag() {
   isDragging.value = false;
-  document.removeEventListener('mousemove', onMouseMove);
-  document.removeEventListener('mouseup', onMouseUp);
+  document.removeEventListener('mousemove', onMouseMoveDrag);
+  document.removeEventListener('mouseup', onMouseUpDrag);
 }
+
+// --- resize logic (bottom-right corner) ---
+
+function onMouseDownResize(e: MouseEvent) {
+  e.stopPropagation();
+  isResizing.value = true;
+
+  resizeStartX = e.clientX;
+  resizeStartY = e.clientY;
+  startWidth = width.value;
+  startHeight = height.value;
+
+  document.addEventListener('mousemove', onMouseMoveResize);
+  document.addEventListener('mouseup', onMouseUpResize);
+}
+
+function onMouseMoveResize(e: MouseEvent) {
+  if (!isResizing.value) return;
+
+  const deltaX = e.clientX - resizeStartX;
+  const deltaY = e.clientY - resizeStartY;
+
+  const newWidth = Math.max(MIN_WIDTH, startWidth + deltaX);
+  const newHeight = Math.max(MIN_HEIGHT, startHeight + deltaY);
+
+  width.value = newWidth;
+  height.value = newHeight;
+}
+
+function onMouseUpResize() {
+  isResizing.value = false;
+  document.removeEventListener('mousemove', onMouseMoveResize);
+  document.removeEventListener('mouseup', onMouseUpResize);
+}
+
+// --- cleanup ---
 
 onUnmounted(() => {
-  document.removeEventListener('mousemove', onMouseMove);
-  document.removeEventListener('mouseup', onMouseUp);
+  document.removeEventListener('mousemove', onMouseMoveDrag);
+  document.removeEventListener('mouseup', onMouseUpDrag);
+  document.removeEventListener('mousemove', onMouseMoveResize);
+  document.removeEventListener('mouseup', onMouseUpResize);
 });
 </script>
 
 <template>
   <div
     class="window"
-    :style="{ left: x + 'px', top: y + 'px' }"
+    :style="{
+      left: x + 'px',
+      top: y + 'px',
+      width: width + 'px',
+      height: height + 'px'
+    }"
   >
     <div
       class="window-header"
@@ -56,20 +117,24 @@ onUnmounted(() => {
     <div class="window-body">
       <slot />
     </div>
+    <div
+      class="resize-handle"
+      @mousedown="onMouseDownResize"
+    />
   </div>
 </template>
 
 <style scoped>
 .window {
   position: absolute;
-  min-width: 280px;
-  max-width: 460px;
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
   border: 1px solid rgba(148, 163, 184, 0.4);
   overflow: hidden;
   cursor: default;
+  display: flex;
+  flex-direction: column;
 }
 
 .window-header {
@@ -98,7 +163,23 @@ onUnmounted(() => {
 }
 
 .window-body {
+  flex: 1;
   padding: 0.7rem;
   background: #f9fafb;
+  overflow: auto; /* scroll if table content gets larger than window */
+}
+
+/* bottom-right resize handle */
+.resize-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  right: 4px;
+  bottom: 4px;
+  border-radius: 3px;
+  border: 1px solid #9ca3af;
+  background: linear-gradient(135deg, #e5e7eb, #ffffff);
+  cursor: se-resize;
+  box-shadow: 0 0 0 1px #e5e7eb;
 }
 </style>
